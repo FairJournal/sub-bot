@@ -1,20 +1,17 @@
-import { Telegraf } from 'telegraf';
+import { Telegraf, Context } from 'telegraf';
 
-// Получите токен бота от BotFather в Telegram
 const bot = new Telegraf('7142520125:AAGpziy9caW6Hx4NKa8kUYLen0j-uyXuLRk');
-console.log('start...')
 
-bot.start((ctx) => ctx.reply('Привет! Я бот.'));
-
-bot.help((ctx) => ctx.reply('Это справочная информация.'));
-
-bot.command('subscribe', (ctx) => {
-  // Реализуйте подписку пользователя на автора статей
-  ctx.reply('Вы подписались на автора.');
+bot.start((ctx: Context) => {
+  const startCommand = (ctx.message as { text: string }).text;
+  if (startCommand && startCommand.startsWith('/start ')) {
+    const authorId = startCommand.split(' ')[1];
+    if (authorId) {
+      ctx.reply(`Вы подписались на автора с ID ${authorId}`);
+    } else {
+      ctx.reply('Для подписки на автора, пожалуйста, используйте ссылку на бота с ID автора.');
+    }
+  }
 });
 
-bot.launch().then(() => {
-  console.log('Бот запущен');
-}).catch((err) => {
-  console.error('Ошибка при запуске бота:', err);
-});
+bot.launch();
