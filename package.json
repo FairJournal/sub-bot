@@ -13,7 +13,9 @@
   "license": "ISC",
   "dependencies": {
     "@types/node": "^20.11.30",
+    "mysql2": "^3.9.3",
     "telegraf": "^4.16.3",
+    "typeorm": "^0.3.20",
     "typescript": "^5.4.3"
   },
   "devDependencies": {
