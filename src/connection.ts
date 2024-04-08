@@ -1,13 +1,18 @@
 import { createConnection } from 'typeorm';
 import { Author } from './Author';
+import dotenv from 'dotenv';
+dotenv.config();
+const dbHost = process.env.DB_HOST;
+const dbUser = process.env.DB_USER;
+const dbPassword = process.env.DB_PASSWORD;
 
 export async function connectDatabase() {
   await createConnection({
     type: 'mysql',
-    host: 'localhost',
+    host: dbHost,
     port: 3306,
-    username: 'root',
-    password: 'root',
+    username: dbUser,
+    password: dbPassword,
     database: 'sub_db',
     entities: [Author],
     synchronize: false,

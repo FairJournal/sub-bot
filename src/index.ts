@@ -5,13 +5,16 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import 'reflect-metadata';
+import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import { Telegraf, Context } from 'telegraf';
 import { connectDatabase } from './connection';
 import { Author } from './Author';
 import { getRepository } from 'typeorm';
-
-const bot = new Telegraf('7142520125:AAGpziy9caW6Hx4NKa8kUYLen0j-uyXuLRk');
+dotenv.config();
+const token = process.env.TELEGRAM_TOKEN;
+console.log(token)
+const bot = new Telegraf(token || '');
 const app = express();
 app.use(express.json());
 
@@ -58,47 +61,115 @@ app.post('/new-article', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/subscribers/:authorHash', async (req: Request, res: Response) => {
+  const authorHash = req.params.authorHash;
+
+  try {
+    const author = await authorRepository.findOne({ where: { hash: authorHash } });
+
+    if (author) {
+      const subscriberCount = author.subscribers ? author.subscribers.length : 0;
+      res.status(200).json({ subscribers: subscriberCount });
+    } else {
+      res.status(200).json({ subscribers: 0 }); // Отправляем ноль, если автор не найден
+    }
+  } catch (error) {
+    console.error('Ошибка при обработке запроса:', error);
+    res.status(500).send('Произошла ошибка при обработке запроса.');
+  }
+});
+
 app.listen(3000, () => {
   console.log('Сервер запущен на порте 3000');
 });
 
-bot.start(async (ctx: Context) => {
-  const messageText = (ctx.message as { text: string }).text || '';
+bot.start(async (ctx) => {
+  const welcomeMessage = `
+Привет! Я бот проекта Fair Journal.
+
+Моя основная задача - помогать вам подписываться на интересных авторов и получать уведомления о новых статьях.
+
+Чтобы подписаться на автора, используйте команду /sub и укажите хэш автора.
+
+Когда автор, на которого вы подписаны, опубликует новую статью, я пришлю вам уведомление с ссылкой на неё.
+
+Чтобы отписаться от автора, используйте команду /unsub и укажите его хэш.
+
+`;
+const messageText = ctx.message?.text || '';
   const commandParams = messageText.split(' ');
+  if(commandParams.length === 1){
+    ctx.reply(welcomeMessage);
+    return
+  }
 
   if (commandParams.length === 2 && commandParams[0] === '/start') {
-    const authorHash = commandParams[1];
+      const authorHash = commandParams[1];
+      try {
+          const author = await authorRepository.findOne({ where: { hash: authorHash } });
 
-    try {
-      const author = await authorRepository.findOne({ where: { hash: authorHash } });
+          if (!author) {
+              ctx.reply('Автор с указанным хешем не существует.');
+              return;
+          }
 
-      if (!author) {
-        ctx.reply('Автор с указанным хешем не существует.');
-        return;
+          const userId = ctx.from?.id.toString();
+
+          if (userId && author.subscribers && author.subscribers.includes(userId)) {
+              ctx.reply('Вы уже подписаны на этого автора.');
+          } else {
+              if (userId && author.subscribers && !author.subscribers.includes(userId)) {
+                  author.subscribers.push(userId);
+              }
+
+              await authorRepository.save(author);
+              ctx.reply(`Вы подписались на автора с хешем ${authorHash}`);
+          }
+      } catch (error) {
+          console.error('Ошибка при обработке команды /sub:', error);
+          ctx.reply('Произошла ошибка при обработке вашего запроса.');
       }
-
-      const userId = ctx.from?.id.toString();
-
-      if (userId && author.subscribers && author.subscribers.includes(userId)) {
-        ctx.reply('Вы уже подписаны на этого автора.');
-      } else {
-        if (userId && author.subscribers && !author.subscribers.includes(userId)) {
-          author.subscribers.push(userId);
-        }
-
-        await authorRepository.save(author);
-        ctx.reply(`Вы подписались на автора с хешем ${authorHash}`);
-      }
-    } catch (error) {
-      console.error('Ошибка при обработке команды /start:', error);
-      ctx.reply('Произошла ошибка при обработке вашего запроса.');
-    }
   } else {
-    ctx.reply('Для подписки на автора, пожалуйста, используйте ссылку на бота с хешем автора.');
+      ctx.reply('Для подписки на автора, пожалуйста, используйте команду /sub HASH_АВТОРА.');
   }
 });
 
-bot.command('unsubscribe', async (ctx: Context) => {
+bot.command('sub', async (ctx) => {
+  const messageText = ctx.message?.text || '';
+  const commandParams = messageText.split(' ');
+
+  if (commandParams.length === 2 && commandParams[0] === '/sub') {
+      const authorHash = commandParams[1];
+      try {
+          const author = await authorRepository.findOne({ where: { hash: authorHash } });
+
+          if (!author) {
+              ctx.reply('Автор с указанным хешем не существует.');
+              return;
+          }
+
+          const userId = ctx.from?.id.toString();
+
+          if (userId && author.subscribers && author.subscribers.includes(userId)) {
+              ctx.reply('Вы уже подписаны на этого автора.');
+          } else {
+              if (userId && author.subscribers && !author.subscribers.includes(userId)) {
+                  author.subscribers.push(userId);
+              }
+
+              await authorRepository.save(author);
+              ctx.reply(`Вы подписались на автора с хешем ${authorHash}`);
+          }
+      } catch (error) {
+          console.error('Ошибка при обработке команды /sub:', error);
+          ctx.reply('Произошла ошибка при обработке вашего запроса.');
+      }
+  } else {
+      ctx.reply('Для подписки на автора, пожалуйста, используйте команду /sub HASH_АВТОРА.');
+  }
+});
+
+bot.command('unsub', async (ctx: Context) => {
   const commandParams = (ctx.message as { text: string }).text.split(' ');
 
   if (commandParams && commandParams.length === 2) {
@@ -121,18 +192,18 @@ bot.command('unsubscribe', async (ctx: Context) => {
         ctx.reply('Автор с указанным хешем не найден.');
       }
     } catch (error) {
-      console.error('Ошибка при обработке команды /unsubscribe:', error);
+      console.error('Ошибка при обработке команды /unsub:', error);
       ctx.reply('Произошла ошибка при обработке вашего запроса.');
     }
   } else {
-    ctx.reply('Для отписки от автора используйте команду /unsubscribe HASH_OF_AUTHOR');
+    ctx.reply('Для отписки от автора используйте команду /unsub HASH_OF_AUTHOR');
   }
 });
 
 bot.on('message', async (ctx: Context) => {
-  ctx.reply('Простите, я не понимаю вашего запроса. Пожалуйста, используйте команду /start для подписки на автора или /unsubscribe для отписки.');
+  ctx.reply('Простите, я не понимаю вашего запроса. Пожалуйста, используйте команду /sub для подписки на автора или /unsub для отписки.');
 });
 
-bot.launch();
+bot.launch()
 
 //https://t.me/fair_journal_bot?start=22222222
