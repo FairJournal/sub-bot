@@ -82,7 +82,7 @@ app.get('/subscribers/:authorHash', async (req: Request, res: Response) => {
   }
 });
 
-app.listen(4000, () => {
+app.listen(process.env.SERVER_PORT || 3000, () => {
   console.log('Сервер запущен на порте 3000');
 });
 
