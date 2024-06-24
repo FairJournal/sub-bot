@@ -11,12 +11,14 @@ import { Telegraf, Context } from 'telegraf';
 import { connectDatabase } from './connection';
 import { Author } from './Author';
 import { getRepository } from 'typeorm';
+import cors from 'cors'
 dotenv.config();
 const token = process.env.TELEGRAM_TOKEN;
-console.log(token)
 const bot = new Telegraf(token || '');
 const app = express();
+app.use(cors())
 app.use(express.json());
+
 
 async function main() {
   await connectDatabase();
@@ -30,6 +32,7 @@ const authorRepository = getRepository(Author);
 app.post('/new-article', async (req: Request, res: Response) => {
   if (req.body && req.body.authorHash && req.body.articleHash) {
     const { authorHash, articleHash } = req.body;
+    console.log(authorHash, articleHash)
 
     try {
       let author =  await authorRepository.findOne({ where: { hash: authorHash } })
@@ -44,7 +47,7 @@ app.post('/new-article', async (req: Request, res: Response) => {
       if (author.subscribers) {
         for (const subscriberId of author.subscribers) {
           try {
-            await bot.telegram.sendMessage(subscriberId, `Новая статья доступна: ${articleHash}`);
+            await bot.telegram.sendMessage(subscriberId, `Новая статья доступна: ${process.env.URL_SITE}${authorHash}/${articleHash}`);
           } catch (error) {
             console.error('Ошибка при отправке сообщения подписчику:', error);
           }
@@ -79,7 +82,7 @@ app.get('/subscribers/:authorHash', async (req: Request, res: Response) => {
   }
 });
 
-app.listen(3000, () => {
+app.listen(4000, () => {
   console.log('Сервер запущен на порте 3000');
 });
 
@@ -123,7 +126,7 @@ const messageText = ctx.message?.text || '';
               }
 
               await authorRepository.save(author);
-              ctx.reply(`Вы подписались на автора с хешем ${authorHash}`);
+              ctx.reply(`Вы подписались на автора с хэшем ${authorHash}`);
           }
       } catch (error) {
           console.error('Ошибка при обработке команды /sub:', error);
