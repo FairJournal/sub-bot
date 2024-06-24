@@ -32,8 +32,6 @@ const authorRepository = getRepository(Author);
 app.post('/new-article', async (req: Request, res: Response) => {
   if (req.body && req.body.authorHash && req.body.articleHash) {
     const { authorHash, articleHash } = req.body;
-    console.log(authorHash, articleHash)
-
     try {
       let author =  await authorRepository.findOne({ where: { hash: authorHash } })
 
