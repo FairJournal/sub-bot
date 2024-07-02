@@ -206,5 +206,3 @@ bot.on('message', async (ctx: Context) => {
 });
 
 bot.launch()
-
-//https://t.me/fair_journal_bot?start=22222222
